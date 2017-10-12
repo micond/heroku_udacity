@@ -41,10 +41,12 @@
 #
 # After writing each step, restart the server and run test.py to test it.
 
+import threading
 import os
 import http.server
 import requests
 from urllib.parse import unquote, parse_qs
+from socketserver import ThreadingMixIn
 
 memory = {}
 
@@ -83,6 +85,8 @@ def CheckURI(uri, timeout=5):
         # If the GET request raised an exception, it's not OK.
         return False
 
+class ThreadHTTPServer(ThreadingMixIn, http.server.HTTPServer):
+    "This is an HTTPServer that supports thread-based concurrency."
 
 class Shortener(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -148,7 +152,7 @@ class Shortener(http.server.BaseHTTPRequestHandler):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))   # Use PORT if it's there.
     server_address = ('', port)
-    httpd = http.server.HTTPServer(server_address, Shortener)
+    httpd = ThreadHTTPServer(server_address, Shortener)
     httpd.serve_forever()
 
 
