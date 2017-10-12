@@ -41,6 +41,7 @@
 #
 # After writing each step, restart the server and run test.py to test it.
 
+import os
 import http.server
 import requests
 from urllib.parse import unquote, parse_qs
@@ -74,15 +75,14 @@ def CheckURI(uri, timeout=5):
     False if that GET request returns any other response, or doesn't return
     (i.e. times out).
     '''
-    # 1. Write this function.  Delete the following line.
-    # raise NotImplementedError("Step 1 isn't written yet.")
     try:
-        r = requests.get(uri, timeout=2)
+        r = requests.get(uri, timeout=timeout)
         # If the GET request returns, was it a 200 OK?
         return r.status_code == 200
     except requests.RequestException:
         # If the GET request raised an exception, it's not OK.
         return False
+
 
 class Shortener(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -92,9 +92,10 @@ class Shortener(http.server.BaseHTTPRequestHandler):
 
         if name:
             if name in memory:
-                # 2. Send a 303 redirect to the long URI in memory[name].
-                #    Delete the following line.
-                raise NotImplementedError("Step 2 isn't written yet.")
+                # We know that name! Send a redirect to it.
+                self.send_response(303)
+                self.send_header('Location', memory[name])
+                self.end_headers()
             else:
                 # We don't know that name! Send a 404 error.
                 self.send_response(404)
@@ -119,9 +120,11 @@ class Shortener(http.server.BaseHTTPRequestHandler):
 
         # Check that the user submitted the form fields.
         if "longuri" not in params or "shortname" not in params:
-            # 3. Serve a 400 error with a useful message.
-            #    Delete the following line.
-            raise NotImplementedError("Step 3 isn't written yet!")
+            self.send_response(400)
+            self.send_header('Content-type', 'text/plain; charset=utf-8')
+            self.end_headers()
+            self.wfile.write("Missing form fields!".encode())
+            return
 
         longuri = params["longuri"][0]
         shortname = params["shortname"][0]
@@ -130,17 +133,20 @@ class Shortener(http.server.BaseHTTPRequestHandler):
             # This URI is good!  Remember it under the specified name.
             memory[shortname] = longuri
 
-            # 4. Serve a redirect to the root page (the form).
-            #    Delete the following line.
-            raise NotImplementedError("Step 4 isn't written yet!")
+            # Serve a redirect to the form.
+            self.send_response(303)
+            self.send_header('Location', '/')
+            self.end_headers()
         else:
             # Didn't successfully fetch the long URI.
-
-            # 5. Send a 404 error with a useful message.
-            #    Delete the following line.
-            raise NotImplementedError("Step 5 isn't written yet!")
+            self.send_response(404)
+            self.send_header('Content-type', 'text/plain; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(
+                "Couldn't fetch URI '{}'. Sorry!".format(longuri).encode())
 
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8000))   # Use PORT if it's there.
     server_address = ('', 8000)
     httpd = http.server.HTTPServer(server_address, Shortener)
     httpd.serve_forever()
